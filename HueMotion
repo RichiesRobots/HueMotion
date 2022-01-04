@@ -1,0 +1,102 @@
+#include <WiFi.h> 
+#include <WiFiClient.h>
+
+#define HUESERVER "HUE_BRIDGE" // Philips Hue Bridge IP
+#define host "esp32"
+#define WIFI_SSID "WIFI_NETWORK"  //  network SSID (name)
+#define WIFI_PW "WIFI_PW"       // network password
+#define API "HUE_API"
+
+#define PORT 80
+
+#define motionSensorPin 2
+
+String Light = "26";
+
+WiFiClient client;
+
+
+void setHueValue(String command, String value, String Light)
+{
+   checkReconnectWifi();
+  
+  if (client.connect(HUESERVER, PORT))
+  {
+    client.print("PUT /api/");
+    client.print(API);
+    client.print("/lights/");
+    client.print(Light);
+    client.println("/state HTTP/1.1");
+    client.println("keep-alive");
+    client.print("Host: ");
+    client.println(HUESERVER);
+    client.print("Content-Length: ");
+    client.println(command.length() + value.length() + 5);
+    client.println("Content-Type: text/plain;charset=UTF-8");
+    client.println();  // blank line before body
+    client.println("{\"" + command + "\":" + value + "}");
+
+    delay(500);
+
+    client.stop();
+  }
+}
+
+
+void initializeWiFi(String initialMessage) {
+ 
+  Serial.println(WIFI_SSID);
+
+  WiFi.begin(WIFI_SSID, WIFI_PW);
+  Serial.println("");
+
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(WIFI_SSID);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  delay(2000);
+}
+
+void checkReconnectWifi(){
+
+  // if WiFi is down, try reconnecting every CHECK_WIFI_TIME seconds
+  if ((WiFi.status() != WL_CONNECTED)) {
+   
+    WiFi.disconnect();
+    initializeWiFi("Reconnecting To ");
+ }
+}
+
+
+void setup(){
+
+Serial.begin(115200);
+  
+initializeWiFi("Connecting to "); 
+pinMode(motionSensorPin, INPUT);
+
+}
+
+void loop(){
+  
+  if (digitalRead(motionSensorPin) == HIGH) {
+
+    // Change the motion state to true (motion detected):
+    
+      Serial.println("Motion detected!");
+          
+     setHueValue("on","true",Light);
+    
+     delay(10000);
+
+     setHueValue("on","false",Light);
+     Serial.println("Lights off");
+  }
+}  
